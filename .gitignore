@@ -1,0 +1,9 @@
+.env
+.venv/
+.mypy_cache/
+imgs/
+output*/
+pipelines
+*.pdf
+*.png
+*.jpg
