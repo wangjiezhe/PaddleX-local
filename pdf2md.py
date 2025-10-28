@@ -84,6 +84,9 @@ def convert(
     output_dir: Path = typer.Option(
         "./output", "-o", "--output", help="Output directory path"
     ),
+    hpip: bool = typer.Option(
+        False, "--hpip", help="Enable high performance inference"
+    ),
 ):
     """
     Convert PDF and image files to Markdown format.
@@ -109,7 +112,16 @@ def convert(
         raise typer.Exit(code=1)
 
     # 创建PP-StructureV3流水线
-    pipeline = create_pipeline(pipeline="./PP-StructureV3-notable.yaml")
+    pipeline_config = "./PP-StructureV3-notable.yaml"
+
+    if hpip:
+        typer.echo("🚀 Enabling high performance inference mode")
+
+    pipeline = create_pipeline(
+        pipeline=pipeline_config,
+        use_hpip=hpip,
+        hpi_config={"auto_config": "False", "backend": "onnxruntime"},
+    )
 
     # 根据文件类型处理
     if file_extension == ".pdf":
