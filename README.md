@@ -25,3 +25,6 @@ pip install setuptools ipython -i https://pypi.tuna.tsinghua.edu.cn/simple
 | 文档理解             | doc_understanding      |
 | PP-DocTranslation    | PP-DocTranslation      |
 
+## 注意事项
+
+- 如果图片是没有歪扭，建议关掉`use_doc_unwarping`，否则可能把正常的图片变得歪扭，还会进行不必要的裁剪影响正常的文字识别。
