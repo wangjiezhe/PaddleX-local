@@ -4,6 +4,4 @@
 imgs/
 output*/
 pipelines
-*.pdf
-*.png
-*.jpg
+input*/
