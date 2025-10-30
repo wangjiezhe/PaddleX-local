@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
+import io
 from pathlib import Path
 
+import img2pdf  # type: ignore
 import typer
 
 app = typer.Typer(
@@ -24,9 +26,38 @@ def process_image_file(image_path: Path, pipeline, output_dir: Path) -> Path:
 
     # 保存当前图像的markdown格式的结果
     for res in output:
+        res.save_to_img(save_path=output_dir)
         res.save_to_markdown(save_path=output_dir)
 
     return mkd_file_path
+
+
+def pil_to_pdf_img2pdf(pil_images, output_path: Path):
+    """
+    images2pdf
+    """
+    if not pil_images:
+        return
+
+    image_bytes_list = []
+
+    for img in pil_images:
+        if img.mode != "RGB":
+            img = img.convert("RGB")
+
+        img_buffer = io.BytesIO()
+        img.save(img_buffer, format="JPEG", quality=95)
+        img_bytes = img_buffer.getvalue()
+        image_bytes_list.append(img_bytes)
+
+    try:
+        pdf_bytes = img2pdf.convert(image_bytes_list)
+        assert pdf_bytes is not None
+        with open(output_path, "wb") as f:
+            f.write(pdf_bytes)
+
+    except Exception as e:
+        print(f"error: {e}")
 
 
 def process_pdf_file(pdf_path: Path, pipeline, output_dir: Path) -> Path:
@@ -40,11 +71,13 @@ def process_pdf_file(pdf_path: Path, pipeline, output_dir: Path) -> Path:
 
     markdown_list = []
     markdown_images = []
+    res_images = []
 
     for res in output:
         md_info = res.markdown
         markdown_list.append(md_info)
         markdown_images.append(md_info.get("markdown_images", {}))
+        res_images.append(res.img)
 
     markdown_texts = pipeline.concatenate_markdown_pages(markdown_list)
 
@@ -55,6 +88,16 @@ def process_pdf_file(pdf_path: Path, pipeline, output_dir: Path) -> Path:
     # 写入Markdown文件
     with open(mkd_file_path, "w", encoding="utf-8") as f:
         f.write(markdown_texts)
+
+    for layout in [
+        "preprocessed_img",     # 预处理
+        "layout_det_res",       # 显示版面区域检测
+        "region_det_res",       # 区域检测（大块）
+        "overall_ocr_res",      # OCR
+        "layout_order_res",     # 显示顺序检测
+    ]:
+        layout_pdf = output_dir / f"{pdf_path.stem}_{layout}.pdf"
+        pil_to_pdf_img2pdf([item[layout] for item in res_images], layout_pdf)
 
     # 保存图像
     for item in markdown_images:
