@@ -5,3 +5,4 @@ imgs/
 output*/
 pipelines
 input*/
+__pycache__/

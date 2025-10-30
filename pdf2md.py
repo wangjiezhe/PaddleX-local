@@ -60,14 +60,17 @@ def pil_to_pdf_img2pdf(pil_images, output_path: Path):
         print(f"error: {e}")
 
 
-def process_pdf_file(pdf_path: Path, pipeline, output_dir: Path) -> Path:
+def process_pdf_file(pdf_path: Path, pipeline, output_dir: Path, v3=False) -> Path:
     """
     处理 PDF 文件，转换为 Markdown
     """
     typer.echo(f"Processing PDF file: {pdf_path}")
 
     # 执行预测
-    output = pipeline.predict(input=str(pdf_path))
+    if v3:
+        output = pipeline.predict_iter(input=str(pdf_path))
+    else:
+        output = pipeline.predict(input=str(pdf_path))
 
     markdown_list = []
     markdown_images = []
@@ -90,11 +93,11 @@ def process_pdf_file(pdf_path: Path, pipeline, output_dir: Path) -> Path:
         f.write(markdown_texts)
 
     for layout in [
-        "preprocessed_img",     # 预处理
-        "layout_det_res",       # 显示版面区域检测
-        "region_det_res",       # 区域检测（大块）
-        "overall_ocr_res",      # OCR
-        "layout_order_res",     # 显示顺序检测
+        "preprocessed_img",  # 预处理
+        "layout_det_res",  # 显示版面区域检测
+        "region_det_res",  # 区域检测（大块）
+        "overall_ocr_res",  # OCR
+        "layout_order_res",  # 显示顺序检测
     ]:
         layout_pdf = output_dir / f"{pdf_path.stem}_{layout}.pdf"
         pil_to_pdf_img2pdf([item[layout] for item in res_images], layout_pdf)
@@ -122,6 +125,9 @@ def convert(
     vl: bool = typer.Option(False, "--vl", help="Use PaddleOCR-VL model"),
     config: str = typer.Option(
         None, "-c", "--config", help="PaddleX pipeline configuration"
+    ),
+    v3: bool = typer.Option(
+        False, "--v3", help="Use paddleocr.PPStructureV3 instead of paddlex"
     ),
 ):
     """
@@ -154,6 +160,15 @@ def convert(
         from paddleocr import PaddleOCRVL  # type: ignore
 
         pipeline = PaddleOCRVL()
+    elif v3:
+        from paddleocr import PPStructureV3
+
+        pipeline = PPStructureV3(
+            use_doc_orientation_classify=False,
+            use_doc_unwarping=False,
+            use_textline_orientation=False,
+            use_table_recognition=False,
+        )
     else:
         from paddlex import create_pipeline  # type: ignore
 
@@ -167,7 +182,7 @@ def convert(
 
     # 根据文件类型处理
     if file_extension == ".pdf":
-        output_path = process_pdf_file(input_file, pipeline, output_dir)
+        output_path = process_pdf_file(input_file, pipeline, output_dir, v3=v3)
     else:
         output_path = process_image_file(input_file, pipeline, output_dir)
 
