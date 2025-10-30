@@ -8,6 +8,7 @@ uv venv --seed --python python3.12
 uv pip install paddlepaddle-gpu==3.2.0 --default-index https://www.paddlepaddle.org.cn/packages/stable/cu129/
 uv pip install "paddleocr[all]" --default-index https://pypi.tuna.tsinghua.edu.cn/simple
 uv pip install ipython typer --default-index https://pypi.tuna.tsinghua.edu.cn/simple
+export LD_LIBRARY_PATH=/usr/lib64:/opt/cuda/lib64:/usr/lib/wsl/lib:/usr/lib
 ```
 
 ##  PaddleOCR 产线与 PaddleX 产线注册名的对应关系
@@ -95,4 +96,20 @@ usage: Command-line interface for PaddleX. Use the options below to install plug
        [--text_det_thresh TEXT_DET_THRESH] [--text_det_box_thresh TEXT_DET_BOX_THRESH] [--text_det_unclip_ratio TEXT_DET_UNCLIP_RATIO]
        [--text_rec_score_thresh TEXT_REC_SCORE_THRESH] [--use_table_cells_ocr_results USE_TABLE_CELLS_OCR_RESULTS]
        [--use_e2e_wired_table_rec_model USE_E2E_WIRED_TABLE_REC_MODEL] [--use_e2e_wireless_table_rec_model USE_E2E_WIRELESS_TABLE_REC_MODEL]
+```
+
+## 使用PaddleOCR-VL
+
+因为要安装`flash-attn`（爆内存），所以直接使用容器。
+
+```bash
+docker run \
+    -it \
+    --name paddleocr-vl \
+    -v $PWD:/paddle -v /root/.paddleocr:/home/paddleocr/.paddleocr -v /root/.paddlex:/home/paddleocr/.paddlex \
+    --gpus all \
+    --network host \
+    --user root \
+    ccr-2vdh3abv-pub.cnc.bj.baidubce.com/paddlepaddle/paddleocr-vl:latest \
+    /bin/bash
 ```

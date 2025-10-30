@@ -3,7 +3,6 @@
 from pathlib import Path
 
 import typer
-from paddlex import create_pipeline  # type: ignore
 
 app = typer.Typer(
     help="Convert PDF and image files to Markdown using PaddleX PP-StructureV3"
@@ -17,12 +16,7 @@ def process_image_file(image_path: Path, pipeline, output_dir: Path) -> Path:
     typer.echo(f"Processing image file: {image_path}")
 
     # 执行预测
-    output = pipeline.predict(
-        input=str(image_path),
-        use_doc_orientation_classify=False,
-        use_doc_unwarping=False,
-        use_textline_orientation=False,
-    )
+    output = pipeline.predict(input=str(image_path))
 
     # 生成输出文件路径
     mkd_file_path = output_dir / f"{image_path.stem}.md"
@@ -42,12 +36,7 @@ def process_pdf_file(pdf_path: Path, pipeline, output_dir: Path) -> Path:
     typer.echo(f"Processing PDF file: {pdf_path}")
 
     # 执行预测
-    output = pipeline.predict(
-        input=str(pdf_path),
-        use_doc_orientation_classify=False,
-        use_doc_unwarping=False,
-        use_textline_orientation=False,
-    )
+    output = pipeline.predict(input=str(pdf_path))
 
     markdown_list = []
     markdown_images = []
@@ -87,6 +76,10 @@ def convert(
     hpip: bool = typer.Option(
         False, "--hpip", help="Enable high performance inference"
     ),
+    vl: bool = typer.Option(False, "--vl", help="Use PaddleOCR-VL model"),
+    config: str = typer.Option(
+        None, "-c", "--config", help="PaddleX pipeline configuration"
+    ),
 ):
     """
     Convert PDF and image files to Markdown format.
@@ -111,17 +104,23 @@ def convert(
         )
         raise typer.Exit(code=1)
 
-    # 创建PP-StructureV3流水线
-    pipeline_config = "./PP-StructureV3-notable.yaml"
-
     if hpip:
         typer.echo("🚀 Enabling high performance inference mode")
 
-    pipeline = create_pipeline(
-        pipeline=pipeline_config,
-        use_hpip=hpip,
-        hpi_config={"auto_config": "False", "backend": "onnxruntime"},
-    )
+    if vl:
+        from paddleocr import PaddleOCRVL  # type: ignore
+
+        pipeline = PaddleOCRVL()
+    else:
+        from paddlex import create_pipeline  # type: ignore
+
+        # 创建PP-StructureV3流水线
+        pipeline_config = config or "./PP-StructureV3-notable.yaml"
+        pipeline = create_pipeline(
+            pipeline=pipeline_config,
+            use_hpip=hpip,
+            hpi_config={"auto_config": "False", "backend": "onnxruntime"},
+        )
 
     # 根据文件类型处理
     if file_extension == ".pdf":
