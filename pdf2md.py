@@ -1,16 +1,19 @@
 #!/usr/bin/env python
 
-import gc
+import gc  # noqa: F401
 import io
+import os  # noqa: F401
 from pathlib import Path
 
 import img2pdf  # type: ignore
-import paddle
+import paddle  # noqa: F401
 import typer
 
 app = typer.Typer(
     help="Convert PDF and image files to Markdown using PaddleX PP-StructureV3"
 )
+
+# os.environ["FLAGS_allocator_strategy"] = "naive_best_fit"
 
 
 def process_image_file(image_path: Path, pipeline, output_dir: Path) -> Path:
@@ -78,8 +81,8 @@ def process_pdf_file(pdf_path: Path, pipeline, output_dir: Path, v3=False) -> Pa
     markdown_images = []
     res_images = []
 
-    gc.collect()
-    paddle.device.cuda.empty_cache()
+    # gc.collect()
+    # paddle.device.cuda.empty_cache()
 
     num = 1
     for res in output:
@@ -88,8 +91,8 @@ def process_pdf_file(pdf_path: Path, pipeline, output_dir: Path, v3=False) -> Pa
         markdown_list.append(md_info)
         markdown_images.append(md_info.get("markdown_images", {}))
         res_images.append(res.img)
-        gc.collect()
-        paddle.device.cuda.empty_cache()
+        # gc.collect()
+        # paddle.device.cuda.empty_cache()
         num += 1
 
     markdown_texts = pipeline.concatenate_markdown_pages(markdown_list)
@@ -133,13 +136,11 @@ def convert(
     hpip: bool = typer.Option(
         False, "--hpip", help="Enable high performance inference"
     ),
-    vl: bool = typer.Option(False, "--vl", help="Use PaddleOCR-VL model"),
     config: str = typer.Option(
         None, "-c", "--config", help="PaddleX pipeline configuration"
     ),
-    v3: bool = typer.Option(
-        False, "--v3", help="Use paddleocr.PPStructureV3 instead of paddlex"
-    ),
+    v3: bool = typer.Option(False, "--v3", help="Use PP-StructureV3 Pipeline"),
+    vl: bool = typer.Option(False, "--vl", help="Use PaddleOCR-VL Pipeline"),
 ):
     """
     Convert PDF and image files to Markdown format.

@@ -133,3 +133,8 @@ docker run \
     ccr-2vdh3abv-pub.cnc.bj.baidubce.com/paddlepaddle/paddleocr-vl:latest \
     /bin/bash
 ```
+
+解决PaddleOCR-VL的显存占用问题：
+
+- 周期性释放
+- 设置`export FLAGS_allocator_strategy=naive_best_fit`。奇怪的是，直接使用`os.environ["FLAGS_allocator_strategy"] = "naive_best_fit"`作用。
