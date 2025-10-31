@@ -92,13 +92,14 @@ def process_pdf_file(pdf_path: Path, pipeline, output_dir: Path, v3=False) -> Pa
     with open(mkd_file_path, "w", encoding="utf-8") as f:
         f.write(markdown_texts)
 
-    for layout in [
-        "preprocessed_img",  # 预处理
-        "layout_det_res",  # 显示版面区域检测
-        "region_det_res",  # 区域检测（大块）
-        "overall_ocr_res",  # OCR
-        "layout_order_res",  # 显示顺序检测
-    ]:
+    for layout in res_images[0].keys():
+    # [
+    #     "preprocessed_img",  # 预处理
+    #     "layout_det_res",    # 显示版面区域检测
+    #     "region_det_res",    # 区域检测（大块）
+    #     "overall_ocr_res",   # OCR
+    #     "layout_order_res",  # 显示顺序检测
+    # ]:
         layout_pdf = output_dir / f"{pdf_path.stem}_{layout}.pdf"
         pil_to_pdf_img2pdf([item[layout] for item in res_images], layout_pdf)
 
@@ -159,7 +160,12 @@ def convert(
     if vl:
         from paddleocr import PaddleOCRVL  # type: ignore
 
-        pipeline = PaddleOCRVL()
+        pipeline = PaddleOCRVL(
+            use_doc_orientation_classify=False,
+            use_doc_unwarping=False,
+            use_textline_orientation=False,
+            use_chart_recognition=False,
+        )
     elif v3:
         from paddleocr import PPStructureV3
 
@@ -182,7 +188,7 @@ def convert(
 
     # 根据文件类型处理
     if file_extension == ".pdf":
-        output_path = process_pdf_file(input_file, pipeline, output_dir, v3=v3)
+        output_path = process_pdf_file(input_file, pipeline, output_dir, v3=v3 or vl)
     else:
         output_path = process_image_file(input_file, pipeline, output_dir)
 
