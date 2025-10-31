@@ -25,7 +25,7 @@ SubModules:
       4: 0.5  # abstract
       5: 0.5  # content
       6: 0.5  # figure_table_chart_title
-      7: 0.35  # formula
+      7: 0.3  # formula
       8: 0.5  # table
       9: 0.5  # reference
       10: 0.5 # doc_title
