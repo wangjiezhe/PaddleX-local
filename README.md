@@ -100,7 +100,11 @@ usage: Command-line interface for PaddleX. Use the options below to install plug
 
 ## 使用PaddleOCR-VL
 
+- 需要安装最新版本的`paddlex==3.3.6`，3.3.5本地运行失败。
+- 需要安装特殊版本的`safetensors`。
+
 ```bash
+uv pip install paddlex==3.3.6
 uv pip install https://paddle-whl.bj.bcebos.com/nightly/cu126/safetensors/safetensors-0.6.2.dev0-cp38-abi3-linux_x86_64.whl
 ```
 

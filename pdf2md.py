@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 
+import gc
 import io
 from pathlib import Path
 
 import img2pdf  # type: ignore
+import paddle
 import typer
 
 app = typer.Typer(
@@ -76,11 +78,19 @@ def process_pdf_file(pdf_path: Path, pipeline, output_dir: Path, v3=False) -> Pa
     markdown_images = []
     res_images = []
 
+    gc.collect()
+    paddle.device.cuda.empty_cache()
+
+    num = 1
     for res in output:
+        typer.echo(f"parsing page {num} ...")
         md_info = res.markdown
         markdown_list.append(md_info)
         markdown_images.append(md_info.get("markdown_images", {}))
         res_images.append(res.img)
+        gc.collect()
+        paddle.device.cuda.empty_cache()
+        num += 1
 
     markdown_texts = pipeline.concatenate_markdown_pages(markdown_list)
 
@@ -93,13 +103,13 @@ def process_pdf_file(pdf_path: Path, pipeline, output_dir: Path, v3=False) -> Pa
         f.write(markdown_texts)
 
     for layout in res_images[0].keys():
-    # [
-    #     "preprocessed_img",  # 预处理
-    #     "layout_det_res",    # 显示版面区域检测
-    #     "region_det_res",    # 区域检测（大块）
-    #     "overall_ocr_res",   # OCR
-    #     "layout_order_res",  # 显示顺序检测
-    # ]:
+        # [
+        #     "preprocessed_img",  # 预处理
+        #     "layout_det_res",    # 显示版面区域检测
+        #     "region_det_res",    # 区域检测（大块）
+        #     "overall_ocr_res",   # OCR
+        #     "layout_order_res",  # 显示顺序检测
+        # ]:
         layout_pdf = output_dir / f"{pdf_path.stem}_{layout}.pdf"
         pil_to_pdf_img2pdf([item[layout] for item in res_images], layout_pdf)
 
