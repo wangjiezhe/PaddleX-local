@@ -100,7 +100,23 @@ usage: Command-line interface for PaddleX. Use the options below to install plug
 
 ## 使用PaddleOCR-VL
 
-因为要安装`flash-attn`（爆内存），所以直接使用容器。
+```bash
+uv pip install https://paddle-whl.bj.bcebos.com/nightly/cu126/safetensors/safetensors-0.6.2.dev0-cp38-abi3-linux_x86_64.whl
+```
+
+```bash
+uv run paddleocr doc_parser -i input/ch4.pdf \
+    --save_path output \
+    --use_doc_orientation_classify False \
+    --use_doc_unwarping False \
+    --use_chart_recognition False
+```
+
+```bash
+uv run python pdf2md.py input/ch4.pdf -o output --vl
+```
+
+使用容器：
 
 ```bash
 docker run \

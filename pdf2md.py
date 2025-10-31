@@ -68,9 +68,9 @@ def process_pdf_file(pdf_path: Path, pipeline, output_dir: Path, v3=False) -> Pa
 
     # 执行预测
     if v3:
-        output = pipeline.predict_iter(input=str(pdf_path))
+        output = pipeline.predict_iter(input=str(pdf_path), use_queues=True)
     else:
-        output = pipeline.predict(input=str(pdf_path))
+        output = pipeline.predict(input=str(pdf_path), use_queues=True)
 
     markdown_list = []
     markdown_images = []
@@ -163,7 +163,6 @@ def convert(
         pipeline = PaddleOCRVL(
             use_doc_orientation_classify=False,
             use_doc_unwarping=False,
-            use_textline_orientation=False,
             use_chart_recognition=False,
         )
     elif v3:
