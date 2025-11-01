@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 
-import gc  # noqa: F401
+import gc
 import io
 import logging
 import os  # noqa: F401
 from pathlib import Path
 
 import img2pdf  # type: ignore
-import paddle  # noqa: F401
+import paddle
 import typer
 
 app = typer.Typer(
@@ -15,6 +15,13 @@ app = typer.Typer(
 )
 
 # os.environ["FLAGS_allocator_strategy"] = "naive_best_fit"
+
+class Colors:
+    RED = "\033[31m"
+    GREEN = "\033[32m"
+    YELLOW = "\033[33m"
+    BLUE = "\033[34m"
+    RESET = "\033[0m"
 
 
 def release_gpu_memory():
@@ -42,6 +49,7 @@ def process_image_file(
         if save_layout:
             res.save_to_img(save_path=output_dir)
         res.save_to_markdown(save_path=output_dir)
+        res.save_to_xlsx(save_path=output_dir)
 
     return mkd_file_path
 
@@ -102,6 +110,7 @@ def process_pdf_file(
         markdown_images.append(md_info.get("markdown_images", {}))
         if save_layout:
             res_images.append(res.img)
+        res.save_to_xlsx(save_path=output_dir)
         num += 1
 
     markdown_texts = pipeline.concatenate_markdown_pages(markdown_list)
@@ -158,7 +167,26 @@ def convert(
     v3: bool = typer.Option(False, "--v3", help="Use PP-StructureV3 Pipeline"),
     vl: bool = typer.Option(False, "--vl", help="Use PaddleOCR-VL Pipeline"),
     no_layout: bool = typer.Option(
-        True, "--no_layout", help="Do not save layout images"
+        False, "--no_layout", help="Do not save layout images"
+    ),
+    use_doc_unwarping: bool = typer.Option(
+        False, "--use_doc_unwarping", help="Use the document unwarping module"
+    ),
+    use_doc_orientation_classify: bool = typer.Option(
+        False,
+        "--use_doc_orientation_classify",
+        help="Use the document orientation classification module",
+    ),
+    use_textline_orientation: bool = typer.Option(
+        False,
+        "--use_textline_orientation",
+        help="Use the text line orientation classification",
+    ),
+    use_table_recognition: bool = typer.Option(
+        False, "--use_table_recognition", help="Use table recognition subpipeline"
+    ),
+    use_chart_recognition: bool = typer.Option(
+        False, "--use_chart_recognition", help="Use the chart parsing module"
     ),
 ):
     """
@@ -201,25 +229,41 @@ def convert(
         typer.echo(f"Processing {len(input_files)} files...")
 
     if hpip:
+        if v3 or vl:
+            typer.echo(
+                f"{Colors.RED}`--hpip` does not work with `--v3` and `--vl`. Ignored.",
+                err=True,
+                color=True,
+            )
         typer.echo("🚀 Enabling high performance inference mode")
+
+    if config and (v3 or vl):
+        typer.echo(
+            f"{Colors.RED}`--v3` and `--vl` does not work with `--config`. Ignored.",
+            err=True,
+            color=True,
+        )
+        vl = False
+        v3 = False
 
     # 初始化流水线
     if vl:
         from paddleocr import PaddleOCRVL  # type: ignore
 
         pipeline = PaddleOCRVL(
-            use_doc_orientation_classify=False,
-            use_doc_unwarping=False,
-            use_chart_recognition=False,
+            use_doc_orientation_classify=use_doc_orientation_classify,
+            use_doc_unwarping=use_doc_unwarping,
+            use_chart_recognition=use_chart_recognition,
         )
     elif v3:
         from paddleocr import PPStructureV3
 
         pipeline = PPStructureV3(
-            use_doc_orientation_classify=False,
-            use_doc_unwarping=False,
-            use_textline_orientation=False,
-            use_table_recognition=False,
+            use_doc_orientation_classify=use_doc_orientation_classify,
+            use_doc_unwarping=use_doc_unwarping,
+            use_textline_orientation=use_textline_orientation,
+            use_table_recognition=use_table_recognition,
+            use_chart_recognition=use_chart_recognition,
         )
     else:
         from paddlex import create_pipeline  # type: ignore

@@ -2,5 +2,6 @@
   "flake8.args": [
     "--config=.flake8"
   ],
-  "editor.wrappingStrategy": "advanced"
+  "editor.wrappingStrategy": "advanced",
+  "editor.formatOnSave": true
 }
