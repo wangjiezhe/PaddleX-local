@@ -16,13 +16,14 @@ app = typer.Typer(
 
 # os.environ["FLAGS_allocator_strategy"] = "naive_best_fit"
 
+
 def release_gpu_memory():
     paddle.device.cuda.empty_cache()
     gc.collect()
 
 
 def process_image_file(
-    image_path: Path, pipeline, output_dir: Path
+    image_path: Path, pipeline, output_dir: Path, save_layout=True
 ) -> Path:
     """
     处理单个图片文件，转换为 Markdown
@@ -38,7 +39,8 @@ def process_image_file(
 
     # 保存当前图像的markdown格式的结果
     for res in output:
-        res.save_to_img(save_path=output_dir)
+        if save_layout:
+            res.save_to_img(save_path=output_dir)
         res.save_to_markdown(save_path=output_dir)
 
     return mkd_file_path
@@ -72,7 +74,9 @@ def pil_to_pdf_img2pdf(pil_images, output_path: Path):
         print(f"error: {e}")
 
 
-def process_pdf_file(pdf_path: Path, pipeline, output_dir: Path, v3=False) -> Path:
+def process_pdf_file(
+    pdf_path: Path, pipeline, output_dir: Path, v3=False, save_layout=True
+) -> Path:
     """
     处理 PDF 文件，转换为 Markdown
     """
@@ -96,7 +100,8 @@ def process_pdf_file(pdf_path: Path, pipeline, output_dir: Path, v3=False) -> Pa
         md_info = res.markdown
         markdown_list.append(md_info)
         markdown_images.append(md_info.get("markdown_images", {}))
-        res_images.append(res.img)
+        if save_layout:
+            res_images.append(res.img)
         num += 1
 
     markdown_texts = pipeline.concatenate_markdown_pages(markdown_list)
@@ -109,17 +114,19 @@ def process_pdf_file(pdf_path: Path, pipeline, output_dir: Path, v3=False) -> Pa
     with open(mkd_file_path, "w", encoding="utf-8") as f:
         f.write(markdown_texts)
 
-    for layout in res_images[0].keys():
-        # [
-        #     "preprocessed_img",  # 预处理
-        #     "layout_det_res",    # 显示版面区域检测
-        #     "region_det_res",    # 区域检测（大块）
-        #     "overall_ocr_res",   # OCR
-        #     "layout_order_res",  # 显示顺序检测
-        # ]:
-        layout_pdf = output_dir / f"{pdf_path.stem}_{layout}.pdf"
-        typer.echo(f"🚀 Saving {layout} results to: {layout_pdf}")
-        pil_to_pdf_img2pdf([item[layout] for item in res_images], layout_pdf)
+    # 保存可视化图像
+    if save_layout:
+        for layout in res_images[0].keys():
+            # [
+            #     "preprocessed_img",  # 预处理
+            #     "layout_det_res",    # 显示版面区域检测
+            #     "region_det_res",    # 区域检测（大块）
+            #     "overall_ocr_res",   # OCR
+            #     "layout_order_res",  # 显示顺序检测
+            # ]:
+            layout_pdf = output_dir / f"{pdf_path.stem}_{layout}.pdf"
+            typer.echo(f"🚀 Saving {layout} results to: {layout_pdf}")
+            pil_to_pdf_img2pdf([item[layout] for item in res_images], layout_pdf)
 
     typer.echo("🚀 Saving images in markdown")
 
@@ -150,6 +157,9 @@ def convert(
     ),
     v3: bool = typer.Option(False, "--v3", help="Use PP-StructureV3 Pipeline"),
     vl: bool = typer.Option(False, "--vl", help="Use PaddleOCR-VL Pipeline"),
+    no_layout: bool = typer.Option(
+        True, "--no_layout", help="Do not save layout images"
+    ),
 ):
     """
     Convert PDF and image files to Markdown format.
@@ -237,10 +247,16 @@ def convert(
             # 根据文件类型处理
             if file_extension == ".pdf":
                 output_path = process_pdf_file(
-                    input_file, pipeline, output_dir, v3=v3 or vl
+                    input_file,
+                    pipeline,
+                    output_dir,
+                    v3=v3 or vl,
+                    save_layout=not no_layout,
                 )
             else:
-                output_path = process_image_file(input_file, pipeline, output_dir)
+                output_path = process_image_file(
+                    input_file, pipeline, output_dir, save_layout=not no_layout
+                )
 
             successful_conversions.append(output_path)
             typer.echo(
