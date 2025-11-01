@@ -16,12 +16,18 @@ app = typer.Typer(
 
 # os.environ["FLAGS_allocator_strategy"] = "naive_best_fit"
 
+def release_gpu_memory():
+    paddle.device.cuda.empty_cache()
+    gc.collect()
 
-def process_image_file(image_path: Path, pipeline, output_dir: Path) -> Path:
+
+def process_image_file(
+    image_path: Path, pipeline, output_dir: Path
+) -> Path:
     """
     处理单个图片文件，转换为 Markdown
     """
-    typer.echo(f"Processing image file: {image_path}")
+    typer.echo(f"🤖 Processing image file: {image_path}")
 
     # 执行预测
     output = pipeline.predict(input=str(image_path))
@@ -70,7 +76,7 @@ def process_pdf_file(pdf_path: Path, pipeline, output_dir: Path, v3=False) -> Pa
     """
     处理 PDF 文件，转换为 Markdown
     """
-    typer.echo(f"Processing PDF file: {pdf_path}")
+    typer.echo(f"🤖 Processing PDF file: {pdf_path}")
 
     # 执行预测
     if v3:
@@ -82,18 +88,15 @@ def process_pdf_file(pdf_path: Path, pipeline, output_dir: Path, v3=False) -> Pa
     markdown_images = []
     res_images = []
 
-    paddle.device.cuda.empty_cache()
-    gc.collect()
+    release_gpu_memory()
 
     num = 1
     for res in output:
-        typer.echo(f"parsing page {num} ...")
+        typer.echo(f"🎲 parsing page {num} ...")
         md_info = res.markdown
         markdown_list.append(md_info)
         markdown_images.append(md_info.get("markdown_images", {}))
         res_images.append(res.img)
-        # gc.collect()
-        # paddle.device.cuda.empty_cache()
         num += 1
 
     markdown_texts = pipeline.concatenate_markdown_pages(markdown_list)
@@ -133,7 +136,9 @@ def process_pdf_file(pdf_path: Path, pipeline, output_dir: Path, v3=False) -> Pa
 
 @app.command()
 def convert(
-    input_file: Path = typer.Argument(..., help="Input PDF or image file path"),
+    input_files: list[Path] = typer.Argument(
+        ..., help="Input PDF or image file paths (multiple files supported)"
+    ),
     output_dir: Path = typer.Option(
         "./output", "-o", "--output", help="Output directory path"
     ),
@@ -150,28 +155,45 @@ def convert(
     Convert PDF and image files to Markdown format.
 
     Supported image formats: .jpg, .jpeg, .png, .bmp, .tiff, .tif
+
+    Examples:
+        python pdf2md.py file1.pdf
+        python pdf2md.py file1.pdf file2.pdf file3.jpg
+        python pdf2md.py *.pdf -o ./output --v3
     """
-    # 检查输入文件是否存在
-    if not input_file.exists():
-        typer.echo(f"Error: Input file '{input_file}' does not exist", err=True)
+    if not input_files:
+        typer.echo("Error: No input files provided", err=True)
         raise typer.Exit(code=1)
 
     # 支持的图片格式
-    supported_image_extensions = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif"}
-    file_extension = input_file.suffix.lower()
+    # 来自 paddlex 里的
+    # inference/common/batch_sampler/image_batch_sampler.py
+    supported_image_extensions = {".jpg", ".jpeg", ".png", ".bmp"}
 
-    # 验证文件格式
-    if file_extension not in {".pdf"} | supported_image_extensions:
-        typer.echo(
-            f"Error: Unsupported file format '{file_extension}'. "
-            f"Supported formats: PDF, {', '.join(supported_image_extensions)}",
-            err=True,
-        )
-        raise typer.Exit(code=1)
+    # 检查所有输入文件
+    for input_file in input_files:
+        if not input_file.exists():
+            typer.echo(f"Error: Input file '{input_file}' does not exist", err=True)
+            raise typer.Exit(code=1)
+
+        file_extension = input_file.suffix.lower()
+        if file_extension not in {".pdf"} | supported_image_extensions:
+            typer.echo(
+                f"Error: Unsupported file format '{file_extension}' for file '{input_file}'. "
+                f"Supported formats: PDF, {', '.join(supported_image_extensions)}",
+                err=True,
+            )
+            raise typer.Exit(code=1)
+
+    if len(input_files) == 1:
+        typer.echo("Processing 1 file...")
+    else:
+        typer.echo(f"Processing {len(input_files)} files...")
 
     if hpip:
         typer.echo("🚀 Enabling high performance inference mode")
 
+    # 初始化流水线
     if vl:
         from paddleocr import PaddleOCRVL  # type: ignore
 
@@ -202,13 +224,44 @@ def convert(
 
     logging.getLogger("paddlex").setLevel(logging.ERROR)
 
-    # 根据文件类型处理
-    if file_extension == ".pdf":
-        output_path = process_pdf_file(input_file, pipeline, output_dir, v3=v3 or vl)
-    else:
-        output_path = process_image_file(input_file, pipeline, output_dir)
+    # 创建输出目录
+    output_dir.mkdir(parents=True, exist_ok=True)
 
-    typer.echo(f"✅ Conversion completed! Markdown file saved to: {output_path}")
+    # 处理所有文件
+    successful_conversions = []
+    for index, input_file in enumerate(input_files, 1):
+        file_extension = input_file.suffix.lower()
+        typer.echo(f"\n--- Processing file {index}/{len(input_files)} ---")
+
+        try:
+            # 根据文件类型处理
+            if file_extension == ".pdf":
+                output_path = process_pdf_file(
+                    input_file, pipeline, output_dir, v3=v3 or vl
+                )
+            else:
+                output_path = process_image_file(input_file, pipeline, output_dir)
+
+            successful_conversions.append(output_path)
+            typer.echo(
+                f"✅ File {index} conversion completed! Markdown file saved to: {output_path}"
+            )
+        except Exception as e:
+            typer.echo(
+                f"❌ Error processing file {index} ({input_file}): {str(e)}", err=True
+            )
+            continue
+
+    # 总结结果
+    typer.echo("\n🎉 Batch conversion completed!")
+    typer.echo(
+        f"Successfully converted {len(successful_conversions)} out of {len(input_files)} files"
+    )
+
+    if successful_conversions:
+        typer.echo("Output files:")
+        for output_path in successful_conversions:
+            typer.echo(f"  - {output_path}")
 
 
 if __name__ == "__main__":
