@@ -2,6 +2,7 @@
 
 import gc  # noqa: F401
 import io
+import logging
 import os  # noqa: F401
 from pathlib import Path
 
@@ -81,8 +82,8 @@ def process_pdf_file(pdf_path: Path, pipeline, output_dir: Path, v3=False) -> Pa
     markdown_images = []
     res_images = []
 
-    # gc.collect()
-    # paddle.device.cuda.empty_cache()
+    paddle.device.cuda.empty_cache()
+    gc.collect()
 
     num = 1
     for res in output:
@@ -114,7 +115,10 @@ def process_pdf_file(pdf_path: Path, pipeline, output_dir: Path, v3=False) -> Pa
         #     "layout_order_res",  # 显示顺序检测
         # ]:
         layout_pdf = output_dir / f"{pdf_path.stem}_{layout}.pdf"
+        typer.echo(f"🚀 Saving {layout} results to: {layout_pdf}")
         pil_to_pdf_img2pdf([item[layout] for item in res_images], layout_pdf)
+
+    typer.echo("🚀 Saving images in markdown")
 
     # 保存图像
     for item in markdown_images:
@@ -195,6 +199,8 @@ def convert(
             use_hpip=hpip,
             hpi_config={"auto_config": "False", "backend": "onnxruntime"},
         )
+
+    logging.getLogger("paddlex").setLevel(logging.ERROR)
 
     # 根据文件类型处理
     if file_extension == ".pdf":
