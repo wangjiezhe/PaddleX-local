@@ -14,7 +14,10 @@ app = typer.Typer(
     help="Convert PDF and image files to Markdown using PaddleX PP-StructureV3"
 )
 
+## Does not work.
+## Use `export FLAGS_allocator_strategy=naive_best_fit` instead if needed.
 # os.environ["FLAGS_allocator_strategy"] = "naive_best_fit"
+
 
 class Colors:
     RED = "\033[31m"
@@ -27,31 +30,6 @@ class Colors:
 def release_gpu_memory():
     paddle.device.cuda.empty_cache()
     gc.collect()
-
-
-def process_image_file(
-    image_path: Path, pipeline, output_dir: Path, save_layout=True
-) -> Path:
-    """
-    处理单个图片文件，转换为 Markdown
-    """
-    typer.echo(f"🤖 Processing image file: {image_path}")
-
-    # 执行预测
-    output = pipeline.predict(input=str(image_path))
-
-    # 生成输出文件路径
-    mkd_file_path = output_dir / f"{image_path.stem}.md"
-    mkd_file_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # 保存当前图像的markdown格式的结果
-    for res in output:
-        if save_layout:
-            res.save_to_img(save_path=output_dir)
-        res.save_to_markdown(save_path=output_dir)
-        res.save_to_xlsx(save_path=output_dir)
-
-    return mkd_file_path
 
 
 def pil_to_pdf_img2pdf(pil_images, output_path: Path):
@@ -82,15 +60,48 @@ def pil_to_pdf_img2pdf(pil_images, output_path: Path):
         print(f"error: {e}")
 
 
+def process_image_file(
+    image_path: Path, pipeline, output_dir: Path, save_layout=True, save_all=False
+) -> Path:
+    """
+    处理单个图片文件，转换为 Markdown
+    """
+    typer.echo(f"🤖 Processing image file: {image_path}")
+
+    ## 执行预测
+    output = pipeline.predict(input=str(image_path))
+
+    ## 生成输出文件路径
+    mkd_file_path = output_dir / f"{image_path.stem}.md"
+    mkd_file_path.parent.mkdir(parents=True, exist_ok=True)
+
+    ## 保存当前图像的markdown格式的结果
+    for res in output:
+        if save_all:
+            res.save_all(save_path=output_dir)
+        else:
+            if save_layout:
+                res.save_to_img(save_path=output_dir)
+            res.save_to_markdown(save_path=output_dir)
+            res.save_to_xlsx(save_path=output_dir)
+
+    return mkd_file_path
+
+
 def process_pdf_file(
-    pdf_path: Path, pipeline, output_dir: Path, v3=False, save_layout=True
+    pdf_path: Path,
+    pipeline,
+    output_dir: Path,
+    v3=False,
+    save_layout=True,
+    save_all=False,
 ) -> Path:
     """
     处理 PDF 文件，转换为 Markdown
     """
     typer.echo(f"🤖 Processing PDF file: {pdf_path}")
 
-    # 执行预测
+    ## 执行预测
     if v3:
         output = pipeline.predict_iter(input=str(pdf_path), use_queues=True)
     else:
@@ -100,30 +111,35 @@ def process_pdf_file(
     markdown_images = []
     res_images = []
 
+    ## This is needed for PaddleOCR-VL
     release_gpu_memory()
 
-    num = 1
-    for res in output:
-        typer.echo(f"🎲 parsing page {num} ...")
+    for index, res in enumerate(output, 1):
+        typer.echo(f"🎲 parsing page {index} ...")
         md_info = res.markdown
         markdown_list.append(md_info)
-        markdown_images.append(md_info.get("markdown_images", {}))
-        if save_layout:
-            res_images.append(res.img)
-        res.save_to_xlsx(save_path=output_dir)
-        num += 1
+        if save_all:
+            res.save_all(save_path=output_dir)
+        else:
+            if save_layout:
+                res_images.append(res.img)
+            res.save_to_xlsx(save_path=output_dir)
+            markdown_images.append(md_info.get("markdown_images", {}))
 
     markdown_texts = pipeline.concatenate_markdown_pages(markdown_list)
 
-    # 生成输出文件路径
+    ## 生成输出文件路径
     mkd_file_path = output_dir / f"{pdf_path.stem}.md"
     mkd_file_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # 写入Markdown文件
+    ## 写入Markdown文件
     with open(mkd_file_path, "w", encoding="utf-8") as f:
         f.write(markdown_texts)
 
-    # 保存可视化图像
+    if save_all:
+        return mkd_file_path
+
+    ## 保存可视化图像
     if save_layout:
         for layout in res_images[0].keys():
             # [
@@ -139,7 +155,7 @@ def process_pdf_file(
 
     typer.echo("🚀 Saving images in markdown")
 
-    # 保存图像
+    ## 保存图像
     for item in markdown_images:
         if item:
             for path, image in item.items():
@@ -188,6 +204,9 @@ def convert(
     use_chart_recognition: bool = typer.Option(
         False, "--use_chart_recognition", help="Use the chart parsing module"
     ),
+    save_all: bool = typer.Option(
+        False, "--save_all", help="Save all results directly"
+    ),
 ):
     """
     Convert PDF and image files to Markdown format.
@@ -203,12 +222,12 @@ def convert(
         typer.echo("Error: No input files provided", err=True)
         raise typer.Exit(code=1)
 
-    # 支持的图片格式
-    # 来自 paddlex 里的
-    # inference/common/batch_sampler/image_batch_sampler.py
+    ## 支持的图片格式
+    ## 来自 paddlex 里的
+    ## inference/common/batch_sampler/image_batch_sampler.py
     supported_image_extensions = {".jpg", ".jpeg", ".png", ".bmp"}
 
-    # 检查所有输入文件
+    ## 检查所有输入文件
     for input_file in input_files:
         if not input_file.exists():
             typer.echo(f"Error: Input file '{input_file}' does not exist", err=True)
@@ -224,9 +243,9 @@ def convert(
             raise typer.Exit(code=1)
 
     if len(input_files) == 1:
-        typer.echo("Processing 1 file...")
+        typer.echo("▶️ Processing 1 file...")
     else:
-        typer.echo(f"Processing {len(input_files)} files...")
+        typer.echo(f"▶️ Processing {len(input_files)} files...")
 
     if hpip:
         if v3 or vl:
@@ -246,7 +265,7 @@ def convert(
         vl = False
         v3 = False
 
-    # 初始化流水线
+    ## 初始化流水线
     if vl:
         from paddleocr import PaddleOCRVL  # type: ignore
 
@@ -268,7 +287,7 @@ def convert(
     else:
         from paddlex import create_pipeline  # type: ignore
 
-        # 创建PP-StructureV3流水线
+        ## 创建PP-StructureV3流水线
         pipeline_config = config or "./PP-StructureV3-notable.yaml"
         pipeline = create_pipeline(
             pipeline=pipeline_config,
@@ -278,17 +297,17 @@ def convert(
 
     logging.getLogger("paddlex").setLevel(logging.ERROR)
 
-    # 创建输出目录
+    ## 创建输出目录
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # 处理所有文件
+    ## 处理所有文件
     successful_conversions = []
     for index, input_file in enumerate(input_files, 1):
         file_extension = input_file.suffix.lower()
         typer.echo(f"\n--- Processing file {index}/{len(input_files)} ---")
 
         try:
-            # 根据文件类型处理
+            ## 根据文件类型处理
             if file_extension == ".pdf":
                 output_path = process_pdf_file(
                     input_file,
@@ -296,12 +315,16 @@ def convert(
                     output_dir,
                     v3=v3 or vl,
                     save_layout=not no_layout,
+                    save_all=save_all,
                 )
             else:
                 output_path = process_image_file(
-                    input_file, pipeline, output_dir, save_layout=not no_layout
+                    input_file,
+                    pipeline,
+                    output_dir,
+                    save_layout=not no_layout,
+                    save_all=save_all,
                 )
-
             successful_conversions.append(output_path)
             typer.echo(
                 f"✅ File {index} conversion completed! Markdown file saved to: {output_path}"
@@ -312,7 +335,7 @@ def convert(
             )
             continue
 
-    # 总结结果
+    ## 总结结果
     typer.echo("\n🎉 Batch conversion completed!")
     typer.echo(
         f"Successfully converted {len(successful_conversions)} out of {len(input_files)} files"
