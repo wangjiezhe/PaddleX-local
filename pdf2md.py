@@ -110,8 +110,9 @@ def process_pdf_file(
     ## This is needed for PaddleOCR-VL
     release_gpu_memory()
 
-    for index, res in enumerate(output, 1):
-        typer.echo(f"🎲 parsing page {index} ...")
+    for res in output:
+        index = res.get("page_index") + 1
+        typer.echo(f"🎲 parsing page {index} of file {pdf_path.name} ...")
         md_info = res.markdown
         markdown_list.append(md_info)
         if save_all:
@@ -274,7 +275,6 @@ def convert(
             use_doc_orientation_classify=use_doc_orientation_classify,
             use_doc_unwarping=use_doc_unwarping,
             use_chart_recognition=use_chart_recognition,
-            # device="gpu:0,1",
         )
     elif v3:
         from paddleocr import PPStructureV3
@@ -285,7 +285,6 @@ def convert(
             use_textline_orientation=use_textline_orientation,
             use_table_recognition=use_table_recognition,
             use_chart_recognition=use_chart_recognition,
-            # device="gpu:0,1",
         )
     else:
         from paddlex import create_pipeline  # type: ignore
@@ -296,7 +295,6 @@ def convert(
             pipeline=pipeline_config,
             use_hpip=hpip,
             hpi_config={"auto_config": "False", "backend": "onnxruntime"},
-            # device="gpu:0,1",
         )
 
     logging.getLogger("paddlex").setLevel(logging.ERROR)
