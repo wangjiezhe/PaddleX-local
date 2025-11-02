@@ -5,6 +5,7 @@ import io
 import logging
 import os  # noqa: F401
 from pathlib import Path
+from typing import Annotated, Optional
 
 import img2pdf  # type: ignore
 import typer
@@ -165,45 +166,58 @@ def process_pdf_file(
 
 @app.command()
 def convert(
-    input_files: list[Path] = typer.Argument(
-        ..., help="Input PDF or image file paths (multiple files supported)"
-    ),
-    output_dir: Path = typer.Option(
-        "./output", "-o", "--output", help="Output directory path"
-    ),
-    hpip: bool = typer.Option(
-        False, "--hpip", help="Enable high performance inference"
-    ),
-    config: str = typer.Option(
-        None, "-c", "--config", help="PaddleX pipeline configuration"
-    ),
-    v3: bool = typer.Option(False, "--v3", help="Use PP-StructureV3 Pipeline"),
-    vl: bool = typer.Option(False, "--vl", help="Use PaddleOCR-VL Pipeline"),
-    no_layout: bool = typer.Option(
-        False, "--no_layout", help="Do not save layout images"
-    ),
-    use_doc_unwarping: bool = typer.Option(
-        False, "--use_doc_unwarping", help="Use the document unwarping module"
-    ),
-    use_doc_orientation_classify: bool = typer.Option(
-        False,
-        "--use_doc_orientation_classify",
-        help="Use the document orientation classification module",
-    ),
-    use_textline_orientation: bool = typer.Option(
-        False,
-        "--use_textline_orientation",
-        help="Use the text line orientation classification",
-    ),
-    use_table_recognition: bool = typer.Option(
-        False, "--use_table_recognition", help="Use table recognition subpipeline"
-    ),
-    use_chart_recognition: bool = typer.Option(
-        False, "--use_chart_recognition", help="Use the chart parsing module"
-    ),
-    save_all: bool = typer.Option(
-        False, "--save_all", help="Save all results directly"
-    ),
+    input_files: Annotated[
+        list[Path],
+        typer.Argument(help="Input PDF or image file paths (multiple files supported)"),
+    ],
+    output_dir: Annotated[
+        Path, typer.Option("-o", "--output", help="Output directory path")
+    ] = Path("./output"),
+    hpip: Annotated[
+        bool, typer.Option("--hpip", help="Enable high performance inference")
+    ] = False,
+    config: Annotated[
+        Optional[str],
+        typer.Option("-c", "--config", help="PaddleX pipeline configuration"),
+    ] = None,
+    v3: Annotated[
+        bool, typer.Option("--v3", help="Use PP-StructureV3 Pipeline")
+    ] = False,
+    vl: Annotated[bool, typer.Option("--vl", help="Use PaddleOCR-VL Pipeline")] = False,
+    no_layout: Annotated[
+        bool, typer.Option("--no_layout", help="Do not save layout images")
+    ] = False,
+    use_doc_unwarping: Annotated[
+        bool,
+        typer.Option("--use_doc_unwarping", help="Use the document unwarping module"),
+    ] = False,
+    use_doc_orientation_classify: Annotated[
+        bool,
+        typer.Option(
+            "--use_doc_orientation_classify",
+            help="Use the document orientation classification module",
+        ),
+    ] = False,
+    use_textline_orientation: Annotated[
+        bool,
+        typer.Option(
+            "--use_textline_orientation",
+            help="Use the text line orientation classification",
+        ),
+    ] = False,
+    use_table_recognition: Annotated[
+        bool,
+        typer.Option(
+            "--use_table_recognition", help="Use table recognition subpipeline"
+        ),
+    ] = False,
+    use_chart_recognition: Annotated[
+        bool,
+        typer.Option("--use_chart_recognition", help="Use the chart parsing module"),
+    ] = False,
+    save_all: Annotated[
+        bool, typer.Option("--save_all", help="Save all results directly")
+    ] = False,
 ):
     """
     Convert PDF and image files to Markdown format.
@@ -272,6 +286,7 @@ def convert(
             use_doc_orientation_classify=use_doc_orientation_classify,
             use_doc_unwarping=use_doc_unwarping,
             use_chart_recognition=use_chart_recognition,
+            # device="gpu:0,1",
         )
     elif v3:
         from paddleocr import PPStructureV3
@@ -282,6 +297,7 @@ def convert(
             use_textline_orientation=use_textline_orientation,
             use_table_recognition=use_table_recognition,
             use_chart_recognition=use_chart_recognition,
+            # device="gpu:0,1",
         )
     else:
         from paddlex import create_pipeline  # type: ignore
@@ -292,6 +308,7 @@ def convert(
             pipeline=pipeline_config,
             use_hpip=hpip,
             hpi_config={"auto_config": "False", "backend": "onnxruntime"},
+            # device="gpu:0,1",
         )
 
     logging.getLogger("paddlex").setLevel(logging.ERROR)
