@@ -10,9 +10,7 @@ from typing import Annotated, Optional
 import img2pdf  # type: ignore
 import typer
 
-app = typer.Typer(
-    help="Convert PDF and image files to Markdown using PaddleX PP-StructureV3"
-)
+app = typer.Typer(help="Convert PDF and image files to Markdown using PaddleX PP-StructureV3")
 
 
 class Colors:
@@ -170,23 +168,17 @@ def convert(
         list[Path],
         typer.Argument(help="Input PDF or image file paths (multiple files supported)"),
     ],
-    output_dir: Annotated[
-        Path, typer.Option("-o", "--output", help="Output directory path")
-    ] = Path("./output"),
-    hpip: Annotated[
-        bool, typer.Option("--hpip", help="Enable high performance inference")
-    ] = False,
+    output_dir: Annotated[Path, typer.Option("-o", "--output", help="Output directory path")] = Path(
+        "./output"
+    ),
+    hpip: Annotated[bool, typer.Option("--hpip", help="Enable high performance inference")] = False,
     config: Annotated[
         Optional[str],
         typer.Option("-c", "--config", help="PaddleX pipeline configuration"),
     ] = None,
-    v3: Annotated[
-        bool, typer.Option("--v3", help="Use PP-StructureV3 Pipeline")
-    ] = False,
+    v3: Annotated[bool, typer.Option("--v3", help="Use PP-StructureV3 Pipeline")] = False,
     vl: Annotated[bool, typer.Option("--vl", help="Use PaddleOCR-VL Pipeline")] = False,
-    no_layout: Annotated[
-        bool, typer.Option("--no_layout", help="Do not save layout images")
-    ] = False,
+    no_layout: Annotated[bool, typer.Option("--no_layout", help="Do not save layout images")] = False,
     use_doc_unwarping: Annotated[
         bool,
         typer.Option("--use_doc_unwarping", help="Use the document unwarping module"),
@@ -207,17 +199,13 @@ def convert(
     ] = False,
     use_table_recognition: Annotated[
         bool,
-        typer.Option(
-            "--use_table_recognition", help="Use table recognition subpipeline"
-        ),
+        typer.Option("--use_table_recognition", help="Use table recognition subpipeline"),
     ] = False,
     use_chart_recognition: Annotated[
         bool,
         typer.Option("--use_chart_recognition", help="Use the chart parsing module"),
     ] = False,
-    save_all: Annotated[
-        bool, typer.Option("--save_all", help="Save all results directly")
-    ] = False,
+    save_all: Annotated[bool, typer.Option("--save_all", help="Save all results directly")] = False,
 ):
     """
     Convert PDF and image files to Markdown format.
@@ -342,20 +330,14 @@ def convert(
                     save_all=save_all,
                 )
             successful_conversions.append(output_path)
-            typer.echo(
-                f"✅ File {index} conversion completed! Markdown file saved to: {output_path}"
-            )
+            typer.echo(f"✅ File {index} conversion completed! Markdown file saved to: {output_path}")
         except Exception as e:
-            typer.echo(
-                f"❌ Error processing file {index} ({input_file}): {str(e)}", err=True
-            )
+            typer.echo(f"❌ Error processing file {index} ({input_file}): {str(e)}", err=True)
             continue
 
     ## 总结结果
     typer.echo("\n🎉 Batch conversion completed!")
-    typer.echo(
-        f"Successfully converted {len(successful_conversions)} out of {len(input_files)} files"
-    )
+    typer.echo(f"Successfully converted {len(successful_conversions)} out of {len(input_files)} files")
 
     if successful_conversions:
         typer.echo("Output files:")

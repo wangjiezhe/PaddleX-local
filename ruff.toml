@@ -1,0 +1,7 @@
+line-length = 108
+
+[format]
+# 使用与 Black 相同的配置
+quote-style = "double"
+skip-magic-trailing-comma = false
+line-ending = "auto"

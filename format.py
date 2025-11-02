@@ -43,9 +43,7 @@ def format_deepseek(content: str) -> str:
     # 替换平行符号
     content = re.sub(r"(\\\()(.*?)(\\\))", parse_parallel, content)
     content = re.sub(r"(\\\[)(.*?)(\\\])", parse_parallel, content)
-    content = re.sub(
-        r"\\\((.*?)\\\) // \\\((.*?)\\\)", r"\(\1 \\parallel \2\)", content
-    )
+    content = re.sub(r"\\\((.*?)\\\) // \\\((.*?)\\\)", r"\(\1 \\parallel \2\)", content)
     # 合并多行公式
     content = re.sub(r"\\\[(.*)\\\]", parse_multiline_formula, content)
     # 正确显示多行公式
