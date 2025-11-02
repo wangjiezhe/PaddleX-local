@@ -7,16 +7,11 @@ import os  # noqa: F401
 from pathlib import Path
 
 import img2pdf  # type: ignore
-import paddle
 import typer
 
 app = typer.Typer(
     help="Convert PDF and image files to Markdown using PaddleX PP-StructureV3"
 )
-
-## Does not work.
-## Use `export FLAGS_allocator_strategy=naive_best_fit` instead if needed.
-# os.environ["FLAGS_allocator_strategy"] = "naive_best_fit"
 
 
 class Colors:
@@ -28,6 +23,8 @@ class Colors:
 
 
 def release_gpu_memory():
+    import paddle
+
     paddle.device.cuda.empty_cache()
     gc.collect()
 
@@ -267,6 +264,8 @@ def convert(
 
     ## 初始化流水线
     if vl:
+        ## 必须在引入任何 paddle 模块前设置才能够起作用
+        os.environ["FLAGS_allocator_strategy"] = "naive_best_fit"
         from paddleocr import PaddleOCRVL  # type: ignore
 
         pipeline = PaddleOCRVL(
