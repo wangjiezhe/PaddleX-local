@@ -3,8 +3,11 @@
 import gc
 import io
 import logging
-import os  # noqa: F401
+import os
+import sys
+from multiprocessing import Manager, Process
 from pathlib import Path
+from queue import Empty
 from typing import Annotated, Optional
 
 import img2pdf  # type: ignore
@@ -89,6 +92,7 @@ def process_pdf_file(
     pipeline,
     output_dir: Path,
     v3=False,
+    vl=False,
     save_layout=True,
     save_all=False,
 ) -> Path:
@@ -98,7 +102,7 @@ def process_pdf_file(
     typer.echo(f"🤖 Processing PDF file: {pdf_path}")
 
     ## 执行预测
-    if v3:
+    if v3 or vl:
         output = pipeline.predict_iter(input=str(pdf_path), use_queues=True)
     else:
         output = pipeline.predict(input=str(pdf_path), use_queues=True)
@@ -108,7 +112,8 @@ def process_pdf_file(
     res_images = []
 
     ## This is needed for PaddleOCR-VL
-    release_gpu_memory()
+    if vl:
+        release_gpu_memory()
 
     for res in output:
         index = res.get("page_index") + 1
@@ -315,7 +320,8 @@ def convert(
                     input_file,
                     pipeline,
                     output_dir,
-                    v3=v3 or vl,
+                    v3=v3,
+                    vl=vl,
                     save_layout=not no_layout,
                     save_all=save_all,
                 )
@@ -341,6 +347,45 @@ def convert(
         typer.echo("Output files:")
         for output_path in successful_conversions:
             typer.echo(f"  - {output_path}")
+
+
+def kaggle_worker(device, task_queue, output_dir):
+    from paddleocr import PaddleOCRVL  # type: ignore
+
+    pipeline = PaddleOCRVL(
+        use_doc_orientation_classify=False,
+        use_doc_unwarping=False,
+        use_chart_recognition=False,
+        device=device,
+    )
+
+    while True:
+        try:
+            input_path = task_queue.get_nowait()
+        except Empty:
+            break
+
+        try:
+            output_path = process_pdf_file(input_path, pipeline, output_dir, vl=True)
+            print(f"✅ Processed {repr(str(input_path))}! Markdown file saved to: {output_path}")
+        except Exception as e:
+            print(f"Error processing {input_path} on {repr(device)}: {e}", file=sys.stderr)
+
+
+def kaggle_convert(input_dir: Path, output_dir: Path):
+    with Manager() as manager:
+        task_queue = manager.Queue()
+        for pdf_file in input_dir.glob("*.pdf"):
+            task_queue.put(pdf_file)
+
+        processes = []
+        for device in ["gpu:0", "gpu:1"]:
+            p = Process(target=kaggle_worker, args=(device, task_queue, output_dir))
+            p.start()
+            processes.append(p)
+
+        for p in processes:
+            p.join()
 
 
 if __name__ == "__main__":

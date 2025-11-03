@@ -27,7 +27,7 @@ export LD_LIBRARY_PATH=/usr/lib64:/opt/cuda/lib64:/usr/lib/wsl/lib:/usr/lib
 
 ## 注意事项
 
-- 如果图片是没有歪扭，建议关掉`use_doc_unwarping`，否则可能把正常的图片变得歪扭，还会进行不必要的裁剪影响正常的文字识别。
+- 如果图片是没有歪扭，建议关掉 `use_doc_unwarping`，否则可能把正常的图片变得歪扭，还会进行不必要的裁剪影响正常的文字识别。
 
 ## 高性能推理
 
@@ -49,7 +49,7 @@ uv run paddlex \
 不过开启高性能推理的代价是占用显存变多。由于我的本地的显存太小，开启高性能推理后反而变慢，甚至有时会报错。
 
 
-## 使用支持TensorRT的镜像
+## 使用支持T ensorRT 的镜像
 
 PaddleX的后端推理库（ultra_infer）目前只支持TensorRT-8，而其又依赖CUDNN-8。因此选择直接使用容器。
 
@@ -98,10 +98,10 @@ usage: Command-line interface for PaddleX. Use the options below to install plug
        [--use_e2e_wired_table_rec_model USE_E2E_WIRED_TABLE_REC_MODEL] [--use_e2e_wireless_table_rec_model USE_E2E_WIRELESS_TABLE_REC_MODEL]
 ```
 
-## 使用PaddleOCR-VL
+## 使用 PaddleOCR-VL
 
-- 需要安装最新版本的`paddlex==3.3.6`，3.3.5本地运行失败。
-- 需要安装特殊版本的`safetensors`。
+- 需要安装最新版本的 `paddlex==3.3.6`，3.3.5本地运行失败。
+- 需要安装特殊版本的 `safetensors`。
 
 ```bash
 uv pip install paddlex==3.3.6
@@ -134,7 +134,7 @@ docker run \
     /bin/bash
 ```
 
-解决PaddleOCR-VL的显存占用问题：
+解决 PaddleOCR-VL 的显存占用问题：
 
-- 周期性释放
-- 设置`export FLAGS_allocator_strategy=naive_best_fit`。奇怪的是，直接使用`os.environ["FLAGS_allocator_strategy"] = "naive_best_fit"`作用。
+- ~~周期性释放~~ 配合下面的显存分配策略，只需要开始释放一次就可以了。
+- 设置环境变量 `export FLAGS_allocator_strategy=naive_best_fit`。
