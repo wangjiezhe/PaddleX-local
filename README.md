@@ -49,7 +49,7 @@ uv run paddlex \
 不过开启高性能推理的代价是占用显存变多。由于我的本地的显存太小，开启高性能推理后反而变慢，甚至有时会报错。
 
 
-## 使用支持T ensorRT 的镜像
+## 使用支持 TensorRT 的镜像
 
 PaddleX的后端推理库（ultra_infer）目前只支持TensorRT-8，而其又依赖CUDNN-8。因此选择直接使用容器。
 
@@ -138,3 +138,30 @@ docker run \
 
 - ~~周期性释放~~ 配合下面的显存分配策略，只需要开始释放一次就可以了。
 - 设置环境变量 `export FLAGS_allocator_strategy=naive_best_fit`。
+
+## 使用 vllm 框架
+
+```bash
+uv venv --seed -p python3.12 .venv_vllm
+VIRTUAL_ENV=.venv_vllm uv pip install "paddleocr[doc-parser]"
+VIRTUAL_ENV=.venv_vllm uv pip install https://github.com/mjun0812/flash-attention-prebuild-wheels/releases/download/v0.3.14/flash_attn-2.8.2%2Bcu129torch2.8-cp312-cp312-linux_x86_64.whl
+VIRTUAL_ENV=.venv_vllm uv run paddleocr install_genai_server_deps vllm
+```
+
+然后运行：
+
+```bash
+VIRTUAL_ENV=.venv_vllm uv run paddleocr genai_server --model_name PaddleOCR-VL-0.9B --backend vllm --port 8118 --backend_config <(echo -e 'gpu-memory-utilization: 0.8\nmax-model-len: 8192')
+```
+
+启动vllm服务。
+
+在另一个终端里，运行
+
+```bash
+uv run python pdf2md.py ./input/*.pdf -o ./output --vllm http://localhost:8118
+```
+
+即可。
+
+速度比直接运行快20倍以上，而且没有遇到之前的显存问题。

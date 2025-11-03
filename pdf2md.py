@@ -93,6 +93,7 @@ def process_pdf_file(
     output_dir: Path,
     v3=False,
     vl=False,
+    vllm=False,
     save_layout=True,
     save_all=False,
 ) -> Path:
@@ -112,7 +113,7 @@ def process_pdf_file(
     res_images = []
 
     ## This is needed for PaddleOCR-VL
-    if vl:
+    if vl and not vllm:
         release_gpu_memory()
 
     for res in output:
@@ -184,6 +185,7 @@ def convert(
     ] = None,
     v3: Annotated[bool, typer.Option("--v3", help="Use PP-StructureV3 Pipeline")] = False,
     vl: Annotated[bool, typer.Option("--vl", help="Use PaddleOCR-VL Pipeline")] = False,
+    vllm: Annotated[Optional[str], typer.Option("--vllm", help="Use vllm backend")] = None,
     no_layout: Annotated[bool, typer.Option("--no_layout", help="Do not save layout images")] = False,
     use_doc_unwarping: Annotated[
         bool,
@@ -216,12 +218,13 @@ def convert(
     """
     Convert PDF and image files to Markdown format.
 
-    Supported image formats: .jpg, .jpeg, .png, .bmp, .tiff, .tif
+    Supported image formats: .jpg, .jpeg, .png, .bmp
 
-    Examples:
-        python pdf2md.py file1.pdf
-        python pdf2md.py file1.pdf file2.pdf file3.jpg
-        python pdf2md.py *.pdf -o ./output --v3
+    Examples: \n
+        python pdf2md.py file1.pdf \n
+        python pdf2md.py file1.pdf file2.pdf file3.jpg \n
+        python pdf2md.py *.pdf -o ./output --v3 \n
+        python pdf2md.py *.pdf -o ./output --vl --vllm http://localhost:8118
     """
     if not input_files:
         typer.echo("Error: No input files provided", err=True)
@@ -272,15 +275,26 @@ def convert(
 
     ## 初始化流水线
     if vl:
-        ## 必须在引入任何 paddle 模块前设置才能够起作用
-        os.environ["FLAGS_allocator_strategy"] = "naive_best_fit"
+        if not vllm:
+            ## 必须在引入任何 paddle 模块前设置才能够起作用
+            os.environ["FLAGS_allocator_strategy"] = "naive_best_fit"
+
         from paddleocr import PaddleOCRVL  # type: ignore
 
-        pipeline = PaddleOCRVL(
-            use_doc_orientation_classify=use_doc_orientation_classify,
-            use_doc_unwarping=use_doc_unwarping,
-            use_chart_recognition=use_chart_recognition,
-        )
+        if vllm:
+            pipeline = PaddleOCRVL(
+                use_doc_orientation_classify=use_doc_orientation_classify,
+                use_doc_unwarping=use_doc_unwarping,
+                use_chart_recognition=use_chart_recognition,
+                vl_rec_backend="vllm-server",
+                vl_rec_server_url=f"{vllm}/v1",
+            )
+        else:
+            pipeline = PaddleOCRVL(
+                use_doc_orientation_classify=use_doc_orientation_classify,
+                use_doc_unwarping=use_doc_unwarping,
+                use_chart_recognition=use_chart_recognition,
+            )
     elif v3:
         from paddleocr import PPStructureV3
 
@@ -322,6 +336,7 @@ def convert(
                     output_dir,
                     v3=v3,
                     vl=vl,
+                    vllm=True if vllm else False,
                     save_layout=not no_layout,
                     save_all=save_all,
                 )
