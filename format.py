@@ -60,7 +60,7 @@ def format_paddle(content: str) -> str:
     # 替换平行符号
     content = re.sub(r"(\$)(.+?)(\$)", parse_parallel, content)
     # 正确显示多行公式
-    content = re.sub(r"\$\$(.+?)\$\$", r"$$\n\1\n$$", content)
+    content = re.sub(r"\n *\$\$(.+?)\$\$ *\n", r"\n$$\n\1\n$$\n", content)
     return content
 
 
