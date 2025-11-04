@@ -22,7 +22,7 @@ SubModules:
       2: 0.5 # aside_text
       3: 0.5 # chart
       4: 0.5 # content
-      5: 0.4 # formula
+      5: 0.3 # formula
       6: 0.4 # doc_title
       7: 0.5 # figure_title
       8: 0.5 # footer
@@ -32,7 +32,7 @@ SubModules:
       12: 0.5 # header
       13: 0.5 # header
       14: 0.5 # image
-      15: 0.4 # formula
+      15: 0.3 # formula
       16: 0.5 # number
       17: 0.4 # paragraph_title
       18: 0.5 # reference
@@ -50,7 +50,7 @@ SubModules:
       2: "union" # aside_text
       3: "large" # chart
       4: "union" # content
-      5: "large" # display_formula
+      5: "small" # display_formula
       6: "large" # doc_title
       7: "union" # figure_title
       8: "union" # footer
@@ -76,14 +76,15 @@ SubModules:
     model_dir: null
     batch_size: 2048
     genai_config:
-      backend: native
+      backend: vllm-server
+      server_url: http://paddleocr-genai-vllm-server:8080/v1
 
 SubPipelines:
   DocPreprocessor:
     pipeline_name: doc_preprocessor
     batch_size: 8
-    use_doc_orientation_classify: True
-    use_doc_unwarping: True
+    use_doc_orientation_classify: False
+    use_doc_unwarping: False
     SubModules:
       DocOrientationClassify:
         module_name: doc_text_orientation
